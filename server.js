@@ -1,20 +1,20 @@
-const express = require("express");
-const cors = require("cors");
-const { config } = require("dotenv");
-const { connectDB } = require("./config/db");
-const authRoutes = require("./routes/auth.routes");
+const express = require('express');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const mongoose = require('mongoose');
 
-config();
+dotenv.config();
+
 const app = express();
-app.use(express.json());
-app.use(cors());
 
 const port = process.env.PORT || 5000
+const mongo = process.env.MONGO_DB
 
-// Routes
-// app.use("/api/auth", authRoutes);
+app.use(express.json());
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server Sucessfully Started on ${port}`)
+app.listen(port, async() => {
+    console.log(`Server started on ${port}`);
+
+    await mongoose.connect(mongo)
+    console.log('MongoDB Connected Successfully');
 })
