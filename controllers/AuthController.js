@@ -23,7 +23,7 @@ class AuthController {
     }
   }
 
-  // Login User
+  // Login User (with session)
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
@@ -38,7 +38,29 @@ class AuthController {
         process.env.JWT_SECRET,
         { expiresIn: "1h" }
       );
-      res.json({ token, message: "Login successful" });
+
+      // Store user info in session
+      req.session.user = { id: user._id, role: user.role, email: user.email };
+
+      res.json({
+        token,
+        message: "Login successful",
+        user: req.session.user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Logout User (destroy session)
+  async logout(req, res, next) {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.json({ message: "Logout successful" });
+      });
     } catch (error) {
       next(error);
     }
@@ -52,33 +74,33 @@ class AuthController {
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
-      } else {
-        const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-          expiresIn: "10m",
-        });
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpires = Date.now() + 600000; // 10 minutes
-        await user.save();
-
-        // Send email with reset token
-        const transporter = nodemailer.createTransport({
-          service: "gmail",
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        });
-
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: "Password Reset",
-          text: `Use this token to reset your password: ${resetToken}`,
-        };
-
-        await transporter.sendMail(mailOptions);
-        res.json({ message: "Password reset token sent to your email" });
       }
+
+      const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "10m",
+      });
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = Date.now() + 600000; // 10 minutes
+      await user.save();
+
+      // Send email with reset token
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Password Reset",
+        text: `Use this token to reset your password: ${resetToken}`,
+      };
+
+      await transporter.sendMail(mailOptions);
+      res.json({ message: "Password reset token sent to your email" });
     } catch (error) {
       next(error);
     }
