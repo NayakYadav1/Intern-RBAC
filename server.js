@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const authRoutes = require('./routes/authRoutes');
 
 const app = express();
@@ -9,6 +11,20 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Session Middleware
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET || 'default_secret_key',
+        resave: false,
+        saveUninitialized: false,
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            collectionName: 'sessions',
+        }),
+        cookie: { secure: false, httpOnly: true, maxAge: 1000 * 60 * 60 }, // 1-hour session
+    })
+);
 
 // Routes
 app.use('/auth', authRoutes);
